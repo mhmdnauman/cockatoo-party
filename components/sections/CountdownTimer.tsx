@@ -5,13 +5,23 @@ import { motion, AnimatePresence } from "framer-motion";
 
 function getSecondsUntilFeeding(): number {
   const now = new Date();
-  const aestOffset = 10 * 60;
-  const utcMinutes = now.getUTCHours() * 60 + now.getUTCMinutes();
-  const aestMinutes = (utcMinutes + aestOffset) % (24 * 60);
-  const feedingMinutes = 16 * 60 + 45;
-  let diff = feedingMinutes - aestMinutes;
-  if (diff < 0) diff += 24 * 60;
-  return diff * 60 - now.getUTCSeconds();
+
+  // Determine current AEST/AEDT offset dynamically using Intl
+  const formatter = new Intl.DateTimeFormat("en-AU", {
+    timeZone: "Australia/Sydney",
+    hour: "numeric",
+    minute: "numeric",
+    second: "numeric",
+    hour12: false,
+  });
+  const parts = formatter.formatToParts(now);
+  const get = (type: string) => parseInt(parts.find((p) => p.type === type)?.value ?? "0");
+  const totalSecs = get("hour") * 3600 + get("minute") * 60 + get("second");
+
+  const feedingSecs = 16 * 3600 + 45 * 60; // 4:45 PM = 16:45:00
+  let diff = feedingSecs - totalSecs;
+  if (diff <= 0) diff += 24 * 3600; // already passed today → next day
+  return diff;
 }
 
 function pad(n: number) {
@@ -53,7 +63,7 @@ export default function CountdownTimer() {
   const h = Math.floor(secs / 3600);
   const m = Math.floor((secs % 3600) / 60);
   const s = secs % 60;
-  const isFeeding = secs === 0;
+  const isFeeding = mounted && secs === 0;
 
   return (
     <section className="relative py-16 sm:py-24 px-6 bg-gradient-to-b from-amber-100 to-orange-100 overflow-hidden">
