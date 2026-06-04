@@ -10,7 +10,7 @@ import FloatingFeathers from "@/components/ui/FloatingFeathers";
 
 export default function Hero() {
   return (
-    <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden bg-gradient-to-b from-sky-300 via-sky-100 to-amber-100 px-4 pb-24">
+    <section className="relative min-h-[calc(100vh-3.5rem)] flex flex-col items-center justify-end overflow-hidden bg-gradient-to-b from-sky-300 via-sky-100 to-amber-100 px-4 pb-16 pt-10">
       <FloatingFeathers />
 
       {/* Sun */}
@@ -43,24 +43,25 @@ export default function Hero() {
         </motion.div>
       ))}
 
-      {/* Flying cockatoo — between the trees, large and prominent */}
+      {/* Flying cockatoo
+           Mobile: absolute above the trees in the sky
+           Desktop (sm+): centred between the trees at mid-height */}
       <motion.div
-        className="absolute z-20 left-1/2 -translate-x-1/2"
-        style={{ bottom: "36%" }}
+        className="absolute z-20 left-1/2 -translate-x-1/2 sm:bottom-[54%] bottom-[62%]"
         initial={{ opacity: 0, scale: 0.6 }}
         animate={{ opacity: 1, scale: 1, y: [0, -12, 0] }}
         transition={{
           opacity: { duration: 0.6, delay: 0.4 },
-          scale: { duration: 0.6, delay: 0.4 },
-          y: { duration: 3, repeat: Infinity, ease: "easeInOut", delay: 0.4 },
+          scale:   { duration: 0.6, delay: 0.4 },
+          y:       { duration: 3, repeat: Infinity, ease: "easeInOut", delay: 0.4 },
         }}
       >
-        <FlyingCockatooSVG size={220} className="sm:hidden" />
+        <FlyingCockatooSVG size={160} className="sm:hidden" />
         <FlyingCockatooSVG size={360} className="hidden sm:block" />
       </motion.div>
 
       {/* ── Main scene: two big trees with perched cockatoos ── */}
-      <div className="relative z-10 flex items-end justify-center w-full max-w-4xl mt-auto pt-20">
+      <div className="relative z-10 flex items-end justify-center w-full max-w-4xl pt-8">
 
         {/* LEFT TREE */}
         <div className="relative flex-shrink-0">
@@ -157,7 +158,7 @@ export default function Hero() {
 
       {/* Scroll arrow */}
       <motion.div
-        className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
+        className="relative z-10 mt-4 flex flex-col items-center gap-2"
         animate={{ y: [0, 8, 0] }}
         transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
       >
