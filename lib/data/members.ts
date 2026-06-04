@@ -13,4 +13,7 @@ export const members: Member[] = [
   { id: "4", name: "Yousof Ahmed", role: "Bread Inspector", emoji: "🍞", isBoss: false },
   { id: "5", name: "M.Nauman", role: "Chief Noise Officer", emoji: "📣", isBoss: false },
   { id: "6", name: "Ehan Ahmed", role: "Dance Captain", emoji: "🕺", isBoss: false },
+  { id: "7", name: "Lucas", role: "Snack Wrangler", emoji: "🌻", isBoss: false },
+  { id: "8", name: "Mila", role: "Feather Collector", emoji: "🪶", isBoss: false },
+  { id: "9", name: "Jeremy", role: "Head Squawker", emoji: "📢", isBoss: false },
 ];
