@@ -6,8 +6,9 @@ import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 const LINKS = [
-  { href: "/",       label: "🏠 Home"  },
-  { href: "/games",  label: "🎮 Games" },
+  { href: "/",        label: "🏠 Home"   },
+  { href: "/games",   label: "🎮 Games"  },
+  { href: "/videos",  label: "🎥 Videos" },
 ];
 
 export default function Navbar() {
