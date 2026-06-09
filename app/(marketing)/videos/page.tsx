@@ -19,18 +19,18 @@ function VideoModal({
 }) {
   const video = videos[index];
   const ref = useRef<HTMLVideoElement>(null);
-  const [dir, setDir] = useState<1 | -1>(1); // 1 = slide up (next), -1 = slide down (prev)
-  const [displayIndex, setDisplayIndex] = useState(index);
+  const [dir, setDir] = useState<1 | -1>(1);
   const touchStartY = useRef<number | null>(null);
   const busy = useRef(false);
 
-  // Autoplay when index changes
+  // Autoplay whenever index changes — ref is always mounted
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    el.currentTime = 0;
+    el.src = `/videos/${videos[index].filename}`;
+    el.load();
     el.play().catch(() => {});
-  }, [displayIndex]);
+  }, [index]);
 
   // Lock body scroll
   useEffect(() => {
@@ -38,18 +38,13 @@ function VideoModal({
     return () => { document.body.style.overflow = ""; };
   }, []);
 
-  // Keep displayIndex in sync when parent index changes (via arrow buttons)
-  useEffect(() => {
-    setDisplayIndex(index);
-  }, [index]);
-
   const go = useCallback((direction: 1 | -1) => {
     if (busy.current) return;
     const next = index + direction;
     if (next < 0 || next >= videos.length) return;
     busy.current = true;
     setDir(direction);
-    setTimeout(() => { busy.current = false; }, 400);
+    setTimeout(() => { busy.current = false; }, 350);
     if (direction === 1) onNext();
     else onPrev();
   }, [index, onNext, onPrev]);
@@ -65,38 +60,36 @@ function VideoModal({
     return () => window.removeEventListener("wheel", handler);
   }, [go]);
 
-  // Keyboard arrows
+  // Keyboard
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "ArrowDown") go(1);
-      if (e.key === "ArrowUp") go(-1);
-      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowUp")   go(-1);
+      if (e.key === "Escape")    onClose();
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [go, onClose]);
 
   // Touch swipe
-  const onTouchStart = (e: React.TouchEvent) => {
-    touchStartY.current = e.touches[0].clientY;
-  };
-  const onTouchEnd = (e: React.TouchEvent) => {
+  const onTouchStart = (e: React.TouchEvent) => { touchStartY.current = e.touches[0].clientY; };
+  const onTouchEnd   = (e: React.TouchEvent) => {
     if (touchStartY.current === null) return;
     const diff = touchStartY.current - e.changedTouches[0].clientY;
-    if (diff > 50) go(1);
+    if (diff > 50)  go(1);
     else if (diff < -50) go(-1);
     touchStartY.current = null;
   };
 
-  const variants = {
-    enter: (d: number) => ({ y: d > 0 ? "100%" : "-100%", opacity: 0 }),
+  const slideVariants = {
+    enter:  (d: number) => ({ y: d > 0 ? "60%" : "-60%", opacity: 0 }),
     center: { y: 0, opacity: 1 },
-    exit:  (d: number) => ({ y: d > 0 ? "-100%" : "100%", opacity: 0 }),
+    exit:   (d: number) => ({ y: d > 0 ? "-60%" : "60%", opacity: 0 }),
   };
 
   return (
     <motion.div
-      className="fixed inset-0 z-50 bg-black flex items-center justify-center"
+      className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -149,52 +142,69 @@ function VideoModal({
         ))}
       </div>
 
-      {/* Sliding video */}
+      {/* Animated info overlay — slides on swipe */}
       <AnimatePresence custom={dir} mode="wait">
         <motion.div
           key={index}
           custom={dir}
-          variants={variants}
+          variants={slideVariants}
           initial="enter"
           animate="center"
           exit="exit"
-          transition={{ duration: 0.35, ease: "easeInOut" }}
-          className="flex flex-col items-center justify-center w-full h-full px-4"
+          transition={{ duration: 0.3, ease: "easeInOut" }}
+          className="absolute top-14 left-1/2 -translate-x-1/2 flex items-center gap-3 z-10 whitespace-nowrap"
         >
-          {/* Info bar */}
-          <div className="flex items-center gap-3 mb-3 z-10">
-            <motion.span
-              className="text-2xl"
-              animate={{ rotate: [0, 8, -8, 0] }}
-              transition={{ duration: 2.5, repeat: Infinity }}
-            >
-              {video.emoji}
-            </motion.span>
-            <h2 className="text-white font-black text-lg sm:text-xl">{video.title}</h2>
-            <span className="text-amber-500 text-xs font-bold ml-auto">{index + 1} / {videos.length}</span>
-          </div>
-
-          {/* Video */}
-          <div className="rounded-2xl overflow-hidden shadow-2xl border-4 border-amber-400/30 bg-black">
-            <video
-              ref={ref}
-              src={`/videos/${video.filename}`}
-              className="max-w-[95vw] max-h-[75vh]"
-              controls
-              playsInline
-            />
-          </div>
-
-          <p className="mt-2 text-amber-400 text-sm text-center">{video.description}</p>
-
-          {/* Scroll hint — only when more than 1 video */}
-          {videos.length > 1 && (
-            <p className="mt-2 text-amber-600 text-[11px] font-bold tracking-widest uppercase">
-              scroll or swipe to browse 🦜
-            </p>
-          )}
+          <motion.span
+            className="text-2xl"
+            animate={{ rotate: [0, 8, -8, 0] }}
+            transition={{ duration: 2.5, repeat: Infinity }}
+          >
+            {video.emoji}
+          </motion.span>
+          <h2 className="text-white font-black text-lg sm:text-xl">{video.title}</h2>
+          <span className="text-amber-500 text-xs font-bold">{index + 1} / {videos.length}</span>
         </motion.div>
       </AnimatePresence>
+
+      {/* Single persistent video element — never unmounts, just swaps src */}
+      <div className="rounded-2xl overflow-hidden shadow-2xl border-4 border-amber-400/30 bg-black">
+        <video
+          ref={ref}
+          className="max-w-[95vw] max-h-[75vh]"
+          controls
+          playsInline
+          preload="auto"
+        />
+      </div>
+
+      {/* Preload adjacent videos */}
+      {videos[index - 1] && (
+        <link rel="preload" as="video" href={`/videos/${videos[index - 1].filename}`} />
+      )}
+      {videos[index + 1] && (
+        <link rel="preload" as="video" href={`/videos/${videos[index + 1].filename}`} />
+      )}
+
+      <AnimatePresence custom={dir} mode="wait">
+        <motion.p
+          key={index}
+          custom={dir}
+          variants={slideVariants}
+          initial="enter"
+          animate="center"
+          exit="exit"
+          transition={{ duration: 0.3, ease: "easeInOut" }}
+          className="mt-3 text-amber-400 text-sm text-center px-4"
+        >
+          {video.description}
+        </motion.p>
+      </AnimatePresence>
+
+      {videos.length > 1 && (
+        <p className="mt-2 text-amber-600 text-[11px] font-bold tracking-widest uppercase">
+          scroll or swipe to browse 🦜
+        </p>
+      )}
     </motion.div>
   );
 }
@@ -217,7 +227,7 @@ function VideoCard({ video, index, onOpen }: { video: Video; index: number; onOp
           className="w-full h-full object-cover opacity-80"
           muted
           playsInline
-          preload="metadata"
+          preload="auto"
         />
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-amber-950/40">
           <motion.div

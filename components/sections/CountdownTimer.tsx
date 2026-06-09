@@ -6,27 +6,58 @@ import { motion, AnimatePresence } from "framer-motion";
 function getSecondsUntilFeeding(): { secs: number; isTuesday: boolean } {
   const now = new Date();
 
-  const formatter = new Intl.DateTimeFormat("en-AU", {
+  // Get current date parts in Sydney time
+  const sydneyParts = new Intl.DateTimeFormat("en-AU", {
     timeZone: "Australia/Sydney",
-    hour: "numeric",
-    minute: "numeric",
-    second: "numeric",
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
     hour12: false,
     weekday: "long",
-  });
-  const parts = formatter.formatToParts(now);
-  const get = (type: string) => parseInt(parts.find((p) => p.type === type)?.value ?? "0");
-  const weekday = parts.find((p) => p.type === "weekday")?.value ?? "";
+  }).formatToParts(now);
+
+  const p = (type: string) => sydneyParts.find((x) => x.type === type)?.value ?? "0";
+  const weekday = sydneyParts.find((x) => x.type === "weekday")?.value ?? "";
   const isTuesday = weekday === "Tuesday";
 
-  const totalSecs = get("hour") * 3600 + get("minute") * 60 + get("second");
-  const feedingSecs = 16 * 3600 + 45 * 60;
+  // Build a Date representing today's 4:45 PM Sydney time
+  // Use Date.UTC trick: construct an ISO string from Sydney date parts
+  const year  = parseInt(p("year"));
+  const month = parseInt(p("month")) - 1; // 0-indexed
+  const day   = parseInt(p("day"));
 
-  let diff = feedingSecs - totalSecs;
-  if (diff <= 0) diff += 24 * 3600; // passed today → next day
-  if (isTuesday) diff += 24 * 3600; // skip Tuesday → Wednesday
+  // "Australia/Sydney" 16:45:00 — find the UTC ms for that moment
+  // We do this by constructing the Sydney midnight in UTC then adding offset
+  // Simplest: use Intl to find UTC offset by comparing parsed local time vs UTC
+  const sydneyHour = parseInt(p("hour"));
+  const sydneyMin  = parseInt(p("minute"));
+  const sydneySec  = parseInt(p("second"));
 
-  return { secs: diff, isTuesday };
+  // UTC offset in seconds = (sydneyTime - utcTime)
+  const sydneyTotalSec = sydneyHour * 3600 + sydneyMin * 60 + sydneySec;
+  const utcTotalSec    = now.getUTCHours() * 3600 + now.getUTCMinutes() * 60 + now.getUTCSeconds();
+  // Handle day boundary wrap
+  let offsetSec = sydneyTotalSec - utcTotalSec;
+  if (offsetSec > 14 * 3600)  offsetSec -= 24 * 3600;
+  if (offsetSec < -14 * 3600) offsetSec += 24 * 3600;
+
+  // Build Sydney midnight as UTC ms
+  const sydneyMidnightUTC = Date.UTC(year, month, day) - offsetSec * 1000;
+  const feedingUTC = sydneyMidnightUTC + (16 * 3600 + 45 * 60) * 1000;
+
+  let diff = feedingUTC - now.getTime();
+
+  // If feeding already passed today, move to next day
+  if (diff <= 0) diff += 24 * 3600 * 1000;
+
+  // If that next feeding lands on a Tuesday (in Sydney), skip to Wednesday
+  const nextFeedingDate = new Date(now.getTime() + diff);
+  const nextWeekday = new Intl.DateTimeFormat("en-AU", {
+    timeZone: "Australia/Sydney",
+    weekday: "long",
+  }).format(nextFeedingDate);
+  if (nextWeekday === "Tuesday") diff += 24 * 3600 * 1000;
+
+  return { secs: Math.round(diff / 1000), isTuesday };
 }
 
 function pad(n: number) {
