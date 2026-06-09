@@ -94,7 +94,7 @@ function VideoModal({
 
   return (
     <motion.div
-      className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center"
+      className="fixed inset-0 z-50 bg-black flex flex-col"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -102,42 +102,54 @@ function VideoModal({
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
-      {/* Close */}
-      <button
-        onClick={onClose}
-        className="absolute top-4 right-4 z-20 w-10 h-10 rounded-full bg-amber-400 hover:bg-amber-300 text-amber-900 font-black flex items-center justify-center shadow-lg transition-colors"
-      >
-        ✕
-      </button>
-
-      {/* Prev arrow */}
-      {index > 0 && (
+      {/* Top bar: prev + title + close */}
+      <div className="flex items-center gap-2 px-3 pt-3 pb-2 shrink-0">
+        {/* Prev */}
         <button
           onClick={() => go(-1)}
-          className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-0.5 text-amber-300 hover:text-white transition-colors"
+          disabled={index === 0}
+          className="w-9 h-9 rounded-full bg-amber-400/80 hover:bg-amber-300 disabled:opacity-0 disabled:pointer-events-none text-amber-900 font-black flex items-center justify-center transition-colors shrink-0"
         >
-          <svg width="24" height="14" viewBox="0 0 24 14" fill="none">
+          <svg width="16" height="10" viewBox="0 0 24 14" fill="none">
             <path d="M2 12L12 2l10 10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
-          <span className="text-[10px] font-bold uppercase tracking-widest">prev</span>
         </button>
-      )}
 
-      {/* Next arrow */}
-      {index < videos.length - 1 && (
+        {/* Animated title */}
+        <AnimatePresence custom={dir} mode="wait">
+          <motion.div
+            key={index}
+            custom={dir}
+            variants={slideVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+            className="flex-1 flex items-center gap-2 min-w-0"
+          >
+            <motion.span
+              className="text-xl shrink-0"
+              animate={{ rotate: [0, 8, -8, 0] }}
+              transition={{ duration: 2.5, repeat: Infinity }}
+            >
+              {video.emoji}
+            </motion.span>
+            <h2 className="text-white font-black text-sm sm:text-base leading-tight truncate">{video.title}</h2>
+            <span className="text-amber-500 text-xs font-bold shrink-0 ml-1">{index + 1}/{videos.length}</span>
+          </motion.div>
+        </AnimatePresence>
+
+        {/* Close */}
         <button
-          onClick={() => go(1)}
-          className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-0.5 text-amber-300 hover:text-white transition-colors"
+          onClick={onClose}
+          className="w-9 h-9 rounded-full bg-amber-400 hover:bg-amber-300 text-amber-900 font-black flex items-center justify-center shadow-lg transition-colors shrink-0"
         >
-          <span className="text-[10px] font-bold uppercase tracking-widest">next</span>
-          <svg width="24" height="14" viewBox="0 0 24 14" fill="none">
-            <path d="M2 2l10 10L22 2" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
+          ✕
         </button>
-      )}
+      </div>
 
       {/* Dot indicators */}
-      <div className="absolute right-4 top-1/2 -translate-y-1/2 z-20 flex flex-col gap-2">
+      <div className="absolute right-2 top-1/2 -translate-y-1/2 z-20 flex flex-col gap-1.5">
         {videos.map((_, i) => (
           <motion.div
             key={i}
@@ -147,63 +159,57 @@ function VideoModal({
         ))}
       </div>
 
-      {/* Animated title/description — slides on swipe */}
-      <AnimatePresence custom={dir} mode="wait">
-        <motion.div
-          key={index}
-          custom={dir}
-          variants={slideVariants}
-          initial="enter"
-          animate="center"
-          exit="exit"
-          transition={{ duration: 0.3, ease: "easeInOut" }}
-          className="absolute top-14 left-1/2 -translate-x-1/2 flex items-center gap-3 z-10 whitespace-nowrap px-4"
-        >
-          <motion.span
-            className="text-2xl"
-            animate={{ rotate: [0, 8, -8, 0] }}
-            transition={{ duration: 2.5, repeat: Infinity }}
-          >
-            {video.emoji}
-          </motion.span>
-          <h2 className="text-white font-black text-lg sm:text-xl">{video.title}</h2>
-          <span className="text-amber-500 text-xs font-bold">{index + 1} / {videos.length}</span>
-        </motion.div>
-      </AnimatePresence>
-
-      {/* Single persistent video — src swapped on index change */}
-      <div className="rounded-2xl overflow-hidden shadow-2xl border-4 border-amber-400/30 bg-black">
-        <video
-          ref={ref}
-          className="max-w-[95vw] max-h-[75vh]"
-          controls
-          playsInline
-          preload="metadata"
-          webkit-playsinline="true"
-          x5-playsinline="true"
-        />
+      {/* Video — grows to fill available space */}
+      <div className="flex-1 flex items-center justify-center px-2 min-h-0">
+        <div className="rounded-2xl overflow-hidden shadow-2xl border-4 border-amber-400/30 bg-black">
+          <video
+            ref={ref}
+            className="max-w-[96vw] max-h-[calc(100vh-160px)]"
+            controls
+            playsInline
+            preload="metadata"
+            webkit-playsinline="true"
+            x5-playsinline="true"
+          />
+        </div>
       </div>
 
-      <AnimatePresence custom={dir} mode="wait">
-        <motion.p
-          key={index}
-          custom={dir}
-          variants={slideVariants}
-          initial="enter"
-          animate="center"
-          exit="exit"
-          transition={{ duration: 0.3, ease: "easeInOut" }}
-          className="mt-3 text-amber-400 text-sm text-center px-4"
-        >
-          {video.description}
-        </motion.p>
-      </AnimatePresence>
+      {/* Bottom bar: description + next + hint */}
+      <div className="shrink-0 flex flex-col items-center gap-1 px-4 pt-2 pb-3">
+        <AnimatePresence custom={dir} mode="wait">
+          <motion.p
+            key={index}
+            custom={dir}
+            variants={slideVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+            className="text-amber-400 text-xs text-center line-clamp-1"
+          >
+            {video.description}
+          </motion.p>
+        </AnimatePresence>
 
-      {videos.length > 1 && (
-        <p className="mt-2 text-amber-600 text-[11px] font-bold tracking-widest uppercase">
-          scroll or swipe to browse 🦜
-        </p>
-      )}
+        <div className="flex items-center gap-4">
+          {videos.length > 1 && (
+            <p className="text-amber-600 text-[10px] font-bold tracking-widest uppercase">
+              swipe up/down to browse 🦜
+            </p>
+          )}
+          {index < videos.length - 1 && (
+            <button
+              onClick={() => go(1)}
+              className="flex items-center gap-1 text-amber-300 hover:text-white transition-colors"
+            >
+              <span className="text-[10px] font-bold uppercase tracking-widest">next</span>
+              <svg width="16" height="10" viewBox="0 0 24 14" fill="none">
+                <path d="M2 2l10 10L22 2" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          )}
+        </div>
+      </div>
     </motion.div>
   );
 }
