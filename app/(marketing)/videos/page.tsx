@@ -23,20 +23,25 @@ function VideoModal({
   const touchStartY = useRef<number | null>(null);
   const busy = useRef(false);
 
-  // Autoplay whenever index changes — ref is always mounted
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    el.src = `/videos/${videos[index].filename}`;
-    el.load();
-    el.play().catch(() => {});
-  }, [index]);
-
   // Lock body scroll
   useEffect(() => {
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = ""; };
   }, []);
+
+  // Swap src and play — wait for canplay so Android doesn't choke
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.pause();
+    el.src = `/videos/${videos[index].filename}`;
+    el.load();
+    const onCanPlay = () => {
+      el.play().catch(() => {});
+    };
+    el.addEventListener("canplay", onCanPlay, { once: true });
+    return () => el.removeEventListener("canplay", onCanPlay);
+  }, [index]);
 
   const go = useCallback((direction: 1 | -1) => {
     if (busy.current) return;
@@ -76,7 +81,7 @@ function VideoModal({
   const onTouchEnd   = (e: React.TouchEvent) => {
     if (touchStartY.current === null) return;
     const diff = touchStartY.current - e.changedTouches[0].clientY;
-    if (diff > 50)  go(1);
+    if (diff > 50)       go(1);
     else if (diff < -50) go(-1);
     touchStartY.current = null;
   };
@@ -142,7 +147,7 @@ function VideoModal({
         ))}
       </div>
 
-      {/* Animated info overlay — slides on swipe */}
+      {/* Animated title/description — slides on swipe */}
       <AnimatePresence custom={dir} mode="wait">
         <motion.div
           key={index}
@@ -152,7 +157,7 @@ function VideoModal({
           animate="center"
           exit="exit"
           transition={{ duration: 0.3, ease: "easeInOut" }}
-          className="absolute top-14 left-1/2 -translate-x-1/2 flex items-center gap-3 z-10 whitespace-nowrap"
+          className="absolute top-14 left-1/2 -translate-x-1/2 flex items-center gap-3 z-10 whitespace-nowrap px-4"
         >
           <motion.span
             className="text-2xl"
@@ -166,24 +171,18 @@ function VideoModal({
         </motion.div>
       </AnimatePresence>
 
-      {/* Single persistent video element — never unmounts, just swaps src */}
+      {/* Single persistent video — src swapped on index change */}
       <div className="rounded-2xl overflow-hidden shadow-2xl border-4 border-amber-400/30 bg-black">
         <video
           ref={ref}
           className="max-w-[95vw] max-h-[75vh]"
           controls
           playsInline
-          preload="auto"
+          preload="metadata"
+          webkit-playsinline="true"
+          x5-playsinline="true"
         />
       </div>
-
-      {/* Preload adjacent videos */}
-      {videos[index - 1] && (
-        <link rel="preload" as="video" href={`/videos/${videos[index - 1].filename}`} />
-      )}
-      {videos[index + 1] && (
-        <link rel="preload" as="video" href={`/videos/${videos[index + 1].filename}`} />
-      )}
 
       <AnimatePresence custom={dir} mode="wait">
         <motion.p
@@ -227,7 +226,7 @@ function VideoCard({ video, index, onOpen }: { video: Video; index: number; onOp
           className="w-full h-full object-cover opacity-80"
           muted
           playsInline
-          preload="auto"
+          preload="metadata"
         />
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-amber-950/40">
           <motion.div
