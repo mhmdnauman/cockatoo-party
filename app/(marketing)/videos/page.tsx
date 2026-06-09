@@ -1,76 +1,207 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { videos, type Video } from "@/lib/data/videos";
 
-function VideoModal({ video, onClose }: { video: Video; onClose: () => void }) {
-  const ref = useRef<HTMLVideoElement>(null);
+// ─── TikTok-style modal ───────────────────────────────────────────────────────
 
+function VideoModal({
+  index,
+  onClose,
+  onNext,
+  onPrev,
+}: {
+  index: number;
+  onClose: () => void;
+  onNext: () => void;
+  onPrev: () => void;
+}) {
+  const video = videos[index];
+  const ref = useRef<HTMLVideoElement>(null);
+  const [dir, setDir] = useState<1 | -1>(1); // 1 = slide up (next), -1 = slide down (prev)
+  const [displayIndex, setDisplayIndex] = useState(index);
+  const touchStartY = useRef<number | null>(null);
+  const busy = useRef(false);
+
+  // Autoplay when index changes
   useEffect(() => {
-    ref.current?.play();
-    // Lock body scroll
+    const el = ref.current;
+    if (!el) return;
+    el.currentTime = 0;
+    el.play().catch(() => {});
+  }, [displayIndex]);
+
+  // Lock body scroll
+  useEffect(() => {
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = ""; };
   }, []);
 
+  // Keep displayIndex in sync when parent index changes (via arrow buttons)
+  useEffect(() => {
+    setDisplayIndex(index);
+  }, [index]);
+
+  const go = useCallback((direction: 1 | -1) => {
+    if (busy.current) return;
+    const next = index + direction;
+    if (next < 0 || next >= videos.length) return;
+    busy.current = true;
+    setDir(direction);
+    setTimeout(() => { busy.current = false; }, 400);
+    if (direction === 1) onNext();
+    else onPrev();
+  }, [index, onNext, onPrev]);
+
+  // Mouse wheel
+  useEffect(() => {
+    const handler = (e: WheelEvent) => {
+      e.preventDefault();
+      if (e.deltaY > 30) go(1);
+      else if (e.deltaY < -30) go(-1);
+    };
+    window.addEventListener("wheel", handler, { passive: false });
+    return () => window.removeEventListener("wheel", handler);
+  }, [go]);
+
+  // Keyboard arrows
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "ArrowDown") go(1);
+      if (e.key === "ArrowUp") go(-1);
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [go, onClose]);
+
+  // Touch swipe
+  const onTouchStart = (e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+  };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartY.current === null) return;
+    const diff = touchStartY.current - e.changedTouches[0].clientY;
+    if (diff > 50) go(1);
+    else if (diff < -50) go(-1);
+    touchStartY.current = null;
+  };
+
+  const variants = {
+    enter: (d: number) => ({ y: d > 0 ? "100%" : "-100%", opacity: 0 }),
+    center: { y: 0, opacity: 1 },
+    exit:  (d: number) => ({ y: d > 0 ? "-100%" : "100%", opacity: 0 }),
+  };
+
   return (
     <motion.div
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-amber-950/95 backdrop-blur-sm px-4"
+      className="fixed inset-0 z-50 bg-black flex items-center justify-center"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.25 }}
-      onClick={onClose}
+      transition={{ duration: 0.2 }}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
     >
-      <motion.div
-        className="relative w-full max-w-[95vw] max-h-[90vh] flex flex-col items-center"
-        initial={{ scale: 0.85, y: 40 }}
-        animate={{ scale: 1, y: 0 }}
-        exit={{ scale: 0.85, y: 40 }}
-        transition={{ duration: 0.3, ease: "easeOut" }}
-        onClick={(e) => e.stopPropagation()}
+      {/* Close */}
+      <button
+        onClick={onClose}
+        className="absolute top-4 right-4 z-20 w-10 h-10 rounded-full bg-amber-400 hover:bg-amber-300 text-amber-900 font-black flex items-center justify-center shadow-lg transition-colors"
       >
-        {/* Close button */}
+        ✕
+      </button>
+
+      {/* Prev arrow */}
+      {index > 0 && (
         <button
-          onClick={onClose}
-          className="absolute -top-12 right-0 text-amber-200 font-black text-sm flex items-center gap-2 hover:text-white transition-colors"
+          onClick={() => go(-1)}
+          className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-0.5 text-amber-300 hover:text-white transition-colors"
         >
-          ✕ close
+          <svg width="24" height="14" viewBox="0 0 24 14" fill="none">
+            <path d="M2 12L12 2l10 10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          <span className="text-[10px] font-bold uppercase tracking-widest">prev</span>
         </button>
+      )}
 
-        {/* Title */}
-        <div className="flex items-center gap-3 mb-3">
-          <motion.span
-            className="text-3xl"
-            animate={{ rotate: [0, 8, -8, 0] }}
-            transition={{ duration: 2.5, repeat: Infinity }}
-          >
-            {video.emoji}
-          </motion.span>
-          <h2 className="text-white font-black text-xl sm:text-2xl">{video.title}</h2>
-        </div>
+      {/* Next arrow */}
+      {index < videos.length - 1 && (
+        <button
+          onClick={() => go(1)}
+          className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-0.5 text-amber-300 hover:text-white transition-colors"
+        >
+          <span className="text-[10px] font-bold uppercase tracking-widest">next</span>
+          <svg width="24" height="14" viewBox="0 0 24 14" fill="none">
+            <path d="M2 2l10 10L22 2" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </button>
+      )}
 
-        {/* Video */}
-        <div className="rounded-2xl overflow-hidden shadow-2xl border-4 border-amber-400/40 bg-black">
-          <video
-            ref={ref}
-            src={`/videos/${video.filename}`}
-            className="max-w-[95vw] max-h-[75vh]"
-            controls
-            playsInline
+      {/* Dot indicators */}
+      <div className="absolute right-4 top-1/2 -translate-y-1/2 z-20 flex flex-col gap-2">
+        {videos.map((_, i) => (
+          <motion.div
+            key={i}
+            className={`rounded-full transition-all ${i === index ? "bg-amber-400 w-2.5 h-2.5" : "bg-white/30 w-2 h-2"}`}
+            animate={{ scale: i === index ? 1.2 : 1 }}
           />
-        </div>
+        ))}
+      </div>
 
-        <p className="mt-3 text-amber-300 text-sm text-center">{video.description}</p>
-      </motion.div>
+      {/* Sliding video */}
+      <AnimatePresence custom={dir} mode="wait">
+        <motion.div
+          key={index}
+          custom={dir}
+          variants={variants}
+          initial="enter"
+          animate="center"
+          exit="exit"
+          transition={{ duration: 0.35, ease: "easeInOut" }}
+          className="flex flex-col items-center justify-center w-full h-full px-4"
+        >
+          {/* Info bar */}
+          <div className="flex items-center gap-3 mb-3 z-10">
+            <motion.span
+              className="text-2xl"
+              animate={{ rotate: [0, 8, -8, 0] }}
+              transition={{ duration: 2.5, repeat: Infinity }}
+            >
+              {video.emoji}
+            </motion.span>
+            <h2 className="text-white font-black text-lg sm:text-xl">{video.title}</h2>
+            <span className="text-amber-500 text-xs font-bold ml-auto">{index + 1} / {videos.length}</span>
+          </div>
+
+          {/* Video */}
+          <div className="rounded-2xl overflow-hidden shadow-2xl border-4 border-amber-400/30 bg-black">
+            <video
+              ref={ref}
+              src={`/videos/${video.filename}`}
+              className="max-w-[95vw] max-h-[75vh]"
+              controls
+              playsInline
+            />
+          </div>
+
+          <p className="mt-2 text-amber-400 text-sm text-center">{video.description}</p>
+
+          {/* Scroll hint — only when more than 1 video */}
+          {videos.length > 1 && (
+            <p className="mt-2 text-amber-600 text-[11px] font-bold tracking-widest uppercase">
+              scroll or swipe to browse 🦜
+            </p>
+          )}
+        </motion.div>
+      </AnimatePresence>
     </motion.div>
   );
 }
 
-function VideoCard({ video, index, onOpen }: { video: Video; index: number; onOpen: () => void }) {
-  const thumbRef = useRef<HTMLVideoElement>(null);
+// ─── Video card ───────────────────────────────────────────────────────────────
 
+function VideoCard({ video, index, onOpen }: { video: Video; index: number; onOpen: () => void }) {
   return (
     <motion.div
       className="relative rounded-3xl overflow-hidden shadow-xl border-4 border-amber-200 bg-white cursor-pointer"
@@ -80,17 +211,14 @@ function VideoCard({ video, index, onOpen }: { video: Video; index: number; onOp
       whileHover={{ y: -6, rotate: 1, scale: 1.02 }}
       onClick={onOpen}
     >
-      {/* Thumbnail */}
       <div className="relative bg-amber-950 aspect-video">
         <video
-          ref={thumbRef}
           src={`/videos/${video.filename}`}
           className="w-full h-full object-cover opacity-80"
           muted
           playsInline
           preload="metadata"
         />
-        {/* Play overlay — always shown on card */}
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-amber-950/40">
           <motion.div
             className="w-16 h-16 rounded-full bg-amber-400 flex items-center justify-center shadow-lg"
@@ -106,8 +234,6 @@ function VideoCard({ video, index, onOpen }: { video: Video; index: number; onOp
           </span>
         </div>
       </div>
-
-      {/* Card info */}
       <div className="px-5 py-4 bg-gradient-to-b from-amber-50 to-white">
         <div className="flex items-start gap-3">
           <motion.span
@@ -127,6 +253,8 @@ function VideoCard({ video, index, onOpen }: { video: Video; index: number; onOp
   );
 }
 
+// ─── Empty state ──────────────────────────────────────────────────────────────
+
 function EmptyState() {
   return (
     <motion.div
@@ -145,13 +273,9 @@ function EmptyState() {
       <h2 className="text-3xl font-black text-amber-900">No videos yet!</h2>
       <p className="text-amber-700 max-w-sm text-base font-medium">
         Drop some <span className="font-black">.mp4</span> files into{" "}
-        <code className="bg-amber-100 text-amber-800 rounded-lg px-2 py-0.5 text-sm font-black">
-          public/videos/
-        </code>{" "}
+        <code className="bg-amber-100 text-amber-800 rounded-lg px-2 py-0.5 text-sm font-black">public/videos/</code>{" "}
         and add them to{" "}
-        <code className="bg-amber-100 text-amber-800 rounded-lg px-2 py-0.5 text-sm font-black">
-          lib/data/videos.ts
-        </code>
+        <code className="bg-amber-100 text-amber-800 rounded-lg px-2 py-0.5 text-sm font-black">lib/data/videos.ts</code>
       </p>
       <motion.div
         className="text-5xl flex gap-3"
@@ -164,12 +288,13 @@ function EmptyState() {
   );
 }
 
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
 export default function VideosPage() {
-  const [active, setActive] = useState<Video | null>(null);
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-sky-200 via-amber-50 to-orange-100 px-4 py-16">
-      {/* Floating feather decorations */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden opacity-20 select-none" aria-hidden>
         {["8%", "88%", "45%"].map((left, i) => (
           <motion.div
@@ -185,7 +310,6 @@ export default function VideosPage() {
       </div>
 
       <div className="max-w-5xl mx-auto relative z-10">
-        {/* Header */}
         <motion.div
           className="text-center mb-14"
           initial={{ opacity: 0, y: -20 }}
@@ -199,9 +323,7 @@ export default function VideosPage() {
           >
             🎥
           </motion.div>
-          <h1 className="text-5xl sm:text-6xl font-black text-amber-900 mb-3">
-            Cockatoo Videos!
-          </h1>
+          <h1 className="text-5xl sm:text-6xl font-black text-amber-900 mb-3">Cockatoo Videos!</h1>
           <p className="text-amber-700 text-lg font-medium">
             Watch the gang in action — squawking, munching & partying! 🦜🍞
           </p>
@@ -214,19 +336,24 @@ export default function VideosPage() {
           </motion.div>
         </motion.div>
 
-        {/* Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
           {videos.length === 0
             ? <EmptyState />
             : videos.map((v, i) => (
-                <VideoCard key={v.id} video={v} index={i} onOpen={() => setActive(v)} />
+                <VideoCard key={v.id} video={v} index={i} onOpen={() => setActiveIndex(i)} />
               ))}
         </div>
       </div>
 
-      {/* Fullscreen modal */}
       <AnimatePresence>
-        {active && <VideoModal video={active} onClose={() => setActive(null)} />}
+        {activeIndex !== null && (
+          <VideoModal
+            index={activeIndex}
+            onClose={() => setActiveIndex(null)}
+            onNext={() => setActiveIndex((i) => Math.min(videos.length - 1, (i ?? 0) + 1))}
+            onPrev={() => setActiveIndex((i) => Math.max(0, (i ?? 0) - 1))}
+          />
+        )}
       </AnimatePresence>
     </main>
   );

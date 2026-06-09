@@ -9,6 +9,7 @@ const LINKS = [
   { href: "/",       label: "Home",   emoji: "🏠" },
   { href: "/games",  label: "Games",  emoji: "🎮" },
   { href: "/videos", label: "Videos", emoji: "🎥" },
+  { href: "/images", label: "Photos", emoji: "📸" },
 ];
 
 export default function Navbar() {

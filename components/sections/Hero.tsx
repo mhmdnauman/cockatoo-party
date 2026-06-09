@@ -153,6 +153,9 @@ export default function Hero() {
           <span className="font-black text-amber-600 text-lg sm:text-xl bg-white/60 rounded-xl px-3 py-0.5">
             4:45 PM 🇦🇺
           </span>
+          <span className="block mt-1 text-xs sm:text-sm text-amber-500 font-bold">
+            (except Tuesdays 🙅 the cockatoos have the day off!)
+          </span>
         </p>
       </motion.div>
 

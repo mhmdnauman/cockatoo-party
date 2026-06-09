@@ -14,4 +14,18 @@ export const videos: Video[] = [
     emoji: "🤝",
     description: "The friendliest cockatoo in the party — coming in for a handshake!",
   },
+  {
+    id: "cockatoo-runs-to-dad",
+    title: "Cockatoo Runs To Dad When He Comes Home!",
+    filename: "Cockatoo-Runs-To-Dad-When-He-Comes-Home.mp4",
+    emoji: "🏠",
+    description: "The most wholesome welcome home ever — this cockatoo can’t wait!",
+  },
+  {
+    id: "facts-about-cockatoos",
+    title: "Facts About Cockatoos!",
+    filename: "facts-about-cockatoos.mp4",
+    emoji: "🧠",
+    description: "Did you know? Cool & fun facts about our favourite birds! 🦜",
+  },
 ];

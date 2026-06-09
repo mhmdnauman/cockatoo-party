@@ -57,7 +57,7 @@ export default function Footer() {
           </div>
 
           {/* Text */}
-          <div className="text-left">
+          <div className="text-left sm:text-left text-center">
             <motion.p
               className="font-black text-lg text-amber-100 leading-tight"
               animate={{ opacity: [0.8, 1, 0.8] }}
@@ -68,13 +68,15 @@ export default function Footer() {
             <p className="text-amber-300 text-sm mt-1 leading-snug">
               Share with friends &amp; family so everyone can join Faez&apos;s daily cockatoo fiesta 🎉
             </p>
-            <a
-              href="/qr/qr-code.png"
-              download="cockatoo-party-qr.png"
-              className="mt-3 inline-flex items-center gap-2 bg-amber-400 hover:bg-amber-300 text-amber-900 font-black text-sm px-4 py-2 rounded-full transition-colors"
-            >
-              🖨️ Download &amp; Print
-            </a>
+            <div className="flex justify-center sm:justify-start">
+              <a
+                href="/qr/qr-code.png"
+                download="cockatoo-party-qr.png"
+                className="mt-3 inline-flex items-center gap-2 bg-amber-400 hover:bg-amber-300 text-amber-900 font-black text-sm px-4 py-2 rounded-full transition-colors"
+              >
+                🖨️ Download &amp; Print
+              </a>
+            </div>
           </div>
         </motion.div>
 

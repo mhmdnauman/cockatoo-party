@@ -3,25 +3,30 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-function getSecondsUntilFeeding(): number {
+function getSecondsUntilFeeding(): { secs: number; isTuesday: boolean } {
   const now = new Date();
 
-  // Determine current AEST/AEDT offset dynamically using Intl
   const formatter = new Intl.DateTimeFormat("en-AU", {
     timeZone: "Australia/Sydney",
     hour: "numeric",
     minute: "numeric",
     second: "numeric",
     hour12: false,
+    weekday: "long",
   });
   const parts = formatter.formatToParts(now);
   const get = (type: string) => parseInt(parts.find((p) => p.type === type)?.value ?? "0");
-  const totalSecs = get("hour") * 3600 + get("minute") * 60 + get("second");
+  const weekday = parts.find((p) => p.type === "weekday")?.value ?? "";
+  const isTuesday = weekday === "Tuesday";
 
-  const feedingSecs = 16 * 3600 + 45 * 60; // 4:45 PM = 16:45:00
+  const totalSecs = get("hour") * 3600 + get("minute") * 60 + get("second");
+  const feedingSecs = 16 * 3600 + 45 * 60;
+
   let diff = feedingSecs - totalSecs;
-  if (diff <= 0) diff += 24 * 3600; // already passed today → next day
-  return diff;
+  if (diff <= 0) diff += 24 * 3600; // passed today → next day
+  if (isTuesday) diff += 24 * 3600; // skip Tuesday → Wednesday
+
+  return { secs: diff, isTuesday };
 }
 
 function pad(n: number) {
@@ -51,12 +56,18 @@ function FlipUnit({ value, label }: { value: string; label: string }) {
 
 export default function CountdownTimer() {
   const [secs, setSecs] = useState(0);
+  const [isTuesday, setIsTuesday] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-    setSecs(getSecondsUntilFeeding());
-    const id = setInterval(() => setSecs(getSecondsUntilFeeding()), 1000);
+    const update = () => {
+      const { secs, isTuesday } = getSecondsUntilFeeding();
+      setSecs(secs);
+      setIsTuesday(isTuesday);
+    };
+    update();
+    const id = setInterval(update, 1000);
     return () => clearInterval(id);
   }, []);
 
@@ -82,9 +93,39 @@ export default function CountdownTimer() {
         </h2>
         <p className="text-amber-700 mb-8 sm:mb-10 text-base sm:text-lg">
           4:45 PM Australian Time — daily bread drop! 🍞
+          <span className="block text-sm text-amber-500 font-bold mt-1">(no Tuesdays 🙅 birds need rest too!)</span>
         </p>
 
-        {isFeeding ? (
+        {isTuesday && mounted ? (
+          <motion.div
+            className="flex flex-col items-center gap-3"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5 }}
+          >
+            <motion.div
+              className="text-6xl"
+              animate={{ rotate: [0, -10, 10, -10, 0], y: [0, -8, 0] }}
+              transition={{ duration: 2, repeat: Infinity }}
+            >
+              😴
+            </motion.div>
+            <p className="text-2xl sm:text-3xl font-black text-amber-800">
+              It&apos;s Tuesday — Day Off! 🦜
+            </p>
+            <p className="text-amber-600 font-semibold text-base sm:text-lg">
+              The cockatoos are chilling today. See you Wednesday! 🌿
+            </p>
+            <div className="flex items-start justify-center gap-2 sm:gap-4 mt-4 opacity-50">
+              {mounted && <FlipUnit value={pad(h)} label="hours" />}
+              <span className="text-3xl sm:text-5xl font-black text-amber-800 mt-3 sm:mt-4">:</span>
+              {mounted && <FlipUnit value={pad(m)} label="mins" />}
+              <span className="text-3xl sm:text-5xl font-black text-amber-800 mt-3 sm:mt-4">:</span>
+              {mounted && <FlipUnit value={pad(s)} label="secs" />}
+            </div>
+            <p className="text-xs text-amber-500 font-bold">til Wednesday&apos;s party 🎉</p>
+          </motion.div>
+        ) : isFeeding ? (
           <motion.div
             className="text-3xl sm:text-5xl font-black text-orange-500"
             animate={{ scale: [1, 1.2, 1] }}
